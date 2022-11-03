@@ -12,18 +12,24 @@ query.limit = 30;
 query.publishedStart = 2021
 query.publishedEnd = 2022
 
-db.cznet.aggregate([
-      {
-        '$search': {
-          'index': 'fuzzy_search',
-          'compound': {
-            'filter': [{
+filters = []
+
+if ('publishedStart' in query) {
+  filters.push({
               'range': {
                 'path': "datePublished",
                 'gte': new Date(query.publishedStart.toString()),
                 'lt': new Date((query.publishedEnd + 1).toString()) // +1 to include all of the publishedEnd year
               },
-            }],
+            })
+}
+
+db.cznet.aggregate([
+      {
+        '$search': {
+          'index': 'fuzzy_search',
+          'compound': {
+            'filter': filters,
             'should': [{
               'text': {
                 'query': query.term, 
@@ -50,87 +56,3 @@ db.cznet.aggregate([
         '$sort': { 'score': { '$meta': 'textScore' } }
       }
     ])
-
-
-
-exports = async (query) => {
-    const cluster = context.services.get('Cluster0');
-    const records = cluster.db('czo').collection('cznet');
-    
-    const result = await records.aggregate([
-      {
-        '$search': {
-          'index': 'fuzzy_search',
-          'compound': {
-            'filter': [{
-              'range': {
-                'path': "datePublished",
-                'gte': new Date(query.publishedStart.toString()),
-                'lte': new Date(query.publishedEnd.toString())
-              },
-            }],
-            'should': [{
-              'text': {
-                'query': query.term, 
-                'path': [
-                  'name', 'description', 'keywords'
-                ], 
-                'fuzzy': { 'maxEdits': 1 }
-              }
-            }]
-          },
-          'highlight': { 'path': ['name', 'description', 'keywords'] }
-        }
-      },
-      {
-        '$limit': query.limit ? query.limit : 30
-      },
-      { 
-        '$set': {
-          'score': { '$meta': 'searchScore' },
-          'highlights': { '$meta': 'searchHighlights' }
-        } 
-      },
-      {
-        '$sort': { 'score': { '$meta': 'textScore' } }
-      }
-    ]).toArray();
-    
-  return result;
-};
-
-
-exports = async (query) => {
-    const cluster = context.services.get('Cluster0');
-    const records = cluster.db('czo').collection('cznet');
-    
-    const result = await records.aggregate([
-      {
-        '$search': {
-          'index': 'fuzzy_search',
-          'text': {
-            'query': query.term, 
-            'path': [
-              'name', 'description', 'keywords'
-            ], 
-            'fuzzy': { 'maxEdits': 1 }
-          },
-          'highlight': { 'path': ['name', 'description', 'keywords'] }
-        }
-      },
-      {
-        '$limit': query.limit ? query.limit : 30
-      },
-      { 
-        '$set': {
-          'score': { '$meta': 'searchScore' },
-          'highlights': { '$meta': 'searchHighlights' }
-        } 
-      },
-      {
-        '$sort': { 'score': { '$meta': 'textScore' } }
-      }
-    ]).toArray();
-    
-  return result;
-};
