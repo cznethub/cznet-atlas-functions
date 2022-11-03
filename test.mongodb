@@ -16,6 +16,8 @@ query.publishedEnd = 2022
 query.dataCoverageStart = 2000
 query.dataCoverageEnd = 2022
 
+query.creatorName = 'Anderson'
+
 filters = []
 
 if ('publishedStart' in query) {
@@ -47,7 +49,16 @@ if ('dataCoverageEnd' in query) {
             })
 }
 
+must_filter = []
 
+if ('creatorName' in query) {
+  must_filter.push({
+              'text': {
+                'path': "creator.@list.name",
+                'query': query.creatorName
+              }
+            })
+}
 
 
 db.cznet.aggregate([
@@ -64,7 +75,8 @@ db.cznet.aggregate([
                 ], 
                 'fuzzy': { 'maxEdits': 1 }
               }
-            }]
+            }],
+            'must': must_filter
           },
           'highlight': { 'path': ['name', 'description', 'keywords'] }
         }
