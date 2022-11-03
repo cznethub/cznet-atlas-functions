@@ -7,19 +7,34 @@
 use('czo');
 
 query = new Object();
-query.term = "water";
-query.limit = 30;
+query.term = "Soil";
+//query.limit = 300;
 
-query.publishedStart = 2021
-query.publishedEnd = 2022
+//query.publishedStart = 2021
+//query.publishedEnd = 2022
 
-query.dataCoverageStart = 2000
-query.dataCoverageEnd = 2022
+//query.dataCoverageStart = 2010
+//query.dataCoverageEnd = 2019
 
-query.creatorName = 'Anderson'
+//query.creatorName = 'Anderson'
 
-filters = []
+//query.providerName = "EarthChem Library"
+query.providerName = "HydroShare"
 
+should = [];
+if ("term" in query) {
+  should.push({
+              'text': {
+                'query': query.term, 
+                'path': [
+                  'name', 'description', 'keywords'
+                ], 
+                'fuzzy': { 'maxEdits': 1 }
+              }
+            });
+};
+
+filters = [];
 if ('publishedStart' in query) {
   filters.push({
               'range': {
@@ -27,8 +42,8 @@ if ('publishedStart' in query) {
                 'gte': new Date(query.publishedStart.toString()),
                 'lt': new Date((query.publishedEnd + 1).toString()) // +1 to include all of the publishedEnd year
               },
-            })
-}
+            });
+};
 
 if ('dataCoverageStart' in query) {
   filters.push({
@@ -36,8 +51,8 @@ if ('dataCoverageStart' in query) {
                 'path': "temporalCoverage.start",
                 'gte': new Date(query.dataCoverageStart.toString())
               },
-            })
-}
+            });
+};
 
 
 if ('dataCoverageEnd' in query) {
@@ -46,20 +61,28 @@ if ('dataCoverageEnd' in query) {
                 'path': "temporalCoverage.end",
                 'lt': new Date((query.dataCoverageEnd + 1).toString()) // +1 to include all of the publishedEnd year
               },
-            })
-}
+            });
+};
 
-must_filter = []
+must = [];
 
 if ('creatorName' in query) {
-  must_filter.push({
+  must.push({
               'text': {
                 'path': "creator.@list.name",
                 'query': query.creatorName
               }
-            })
-}
+            });
+};
 
+if ('providerName' in query) {
+  must.push({
+              'text': {
+                'path': "provider.name",
+                'query': query.providerName
+              }
+            });
+};
 
 db.cznet.aggregate([
       {
@@ -67,16 +90,8 @@ db.cznet.aggregate([
           'index': 'fuzzy_search',
           'compound': {
             'filter': filters,
-            'should': [{
-              'text': {
-                'query': query.term, 
-                'path': [
-                  'name', 'description', 'keywords'
-                ], 
-                'fuzzy': { 'maxEdits': 1 }
-              }
-            }],
-            'must': must_filter
+            'should': should,
+            'must': must
           },
           'highlight': { 'path': ['name', 'description', 'keywords'] }
         }
@@ -93,4 +108,4 @@ db.cznet.aggregate([
       {
         '$sort': { 'score': { '$meta': 'textScore' } }
       }
-    ])
+    ]);
