@@ -9,8 +9,12 @@ use('czo');
 query = new Object();
 query.term = "water";
 query.limit = 30;
+
 query.publishedStart = 2021
 query.publishedEnd = 2022
+
+query.dataCoverageStart = 2000
+query.dataCoverageEnd = 2022
 
 filters = []
 
@@ -23,6 +27,28 @@ if ('publishedStart' in query) {
               },
             })
 }
+
+if ('dataCoverageStart' in query) {
+  filters.push({
+              'range': {
+                'path': "temporalCoverage.start",
+                'gte': new Date(query.dataCoverageStart.toString())
+              },
+            })
+}
+
+
+if ('dataCoverageEnd' in query) {
+  filters.push({
+              'range': {
+                'path': "temporalCoverage.end",
+                'lt': new Date((query.dataCoverageEnd + 1).toString()) // +1 to include all of the publishedEnd year
+              },
+            })
+}
+
+
+
 
 db.cznet.aggregate([
       {
