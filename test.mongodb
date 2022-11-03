@@ -32,7 +32,7 @@ if ("term" in query) {
                 'fuzzy': { 'maxEdits': 1 }
               }
             });
-};
+}
 
 filters = [];
 if ('publishedStart' in query) {
@@ -43,7 +43,7 @@ if ('publishedStart' in query) {
                 'lt': new Date((query.publishedEnd + 1).toString()) // +1 to include all of the publishedEnd year
               },
             });
-};
+}
 
 if ('dataCoverageStart' in query) {
   filters.push({
@@ -52,7 +52,7 @@ if ('dataCoverageStart' in query) {
                 'gte': new Date(query.dataCoverageStart.toString())
               },
             });
-};
+}
 
 
 if ('dataCoverageEnd' in query) {
@@ -62,7 +62,7 @@ if ('dataCoverageEnd' in query) {
                 'lt': new Date((query.dataCoverageEnd + 1).toString()) // +1 to include all of the publishedEnd year
               },
             });
-};
+}
 
 must = [];
 
@@ -73,7 +73,7 @@ if ('creatorName' in query) {
                 'query': query.creatorName
               }
             });
-};
+}
 
 if ('providerName' in query) {
   must.push({
@@ -82,7 +82,7 @@ if ('providerName' in query) {
                 'query': query.providerName
               }
             });
-};
+}
 
 db.cznet.aggregate([
       {
