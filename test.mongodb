@@ -10,8 +10,8 @@ query = new Object();
 query.term = "Soil";
 //query.limit = 300;
 
-//query.publishedStart = 2021
-//query.publishedEnd = 2022
+query.publishedStart = 2021
+query.publishedEnd = 2022
 
 //query.dataCoverageStart = 2010
 //query.dataCoverageEnd = 2019
@@ -21,91 +21,122 @@ query.term = "Soil";
 //query.providerName = "EarthChem Library"
 query.providerName = "HydroShare"
 
-should = [];
-if ("term" in query) {
+const pageSize = query.pageSize || 30;
+const pageNumber = query.pageNumber || 1;
+
+const should = [];
+if ('term' in query) {
   should.push({
-              'text': {
-                'query': query.term, 
-                'path': [
-                  'name', 'description', 'keywords'
-                ], 
-                'fuzzy': { 'maxEdits': 1 }
-              }
-            });
+    'text': {
+      'query': query.term, 
+      'path': [
+        'name', 'description', 'keywords'
+      ], 
+      'fuzzy': { 'maxEdits': 1 }
+    }
+  });
 }
 
-filters = [];
+const filters = [];
 if ('publishedStart' in query) {
   filters.push({
-              'range': {
-                'path': "datePublished",
-                'gte': new Date(query.publishedStart.toString()),
-                'lt': new Date((query.publishedEnd + 1).toString()) // +1 to include all of the publishedEnd year
-              },
-            });
+    'range': {
+      'path': 'datePublished',
+      'gte': new Date(query.publishedStart.toString()),
+      'lt': new Date((query.publishedEnd + 1).toString()) // +1 to include all of the publishedEnd year
+    },
+  });
 }
 
 if ('dataCoverageStart' in query) {
   filters.push({
-              'range': {
-                'path': "temporalCoverage.start",
-                'gte': new Date(query.dataCoverageStart.toString())
-              },
-            });
+    'range': {
+      'path': 'temporalCoverage.start',
+      'gte': new Date(query.dataCoverageStart.toString())
+    },
+  });
 }
 
 
 if ('dataCoverageEnd' in query) {
   filters.push({
-              'range': {
-                'path': "temporalCoverage.end",
-                'lt': new Date((query.dataCoverageEnd + 1).toString()) // +1 to include all of the publishedEnd year
-              },
-            });
+    'range': {
+      'path': 'temporalCoverage.end',
+      'lt': new Date((query.dataCoverageEnd + 1).toString()) // +1 to include all of the publishedEnd year
+    },
+  });
 }
 
-must = [];
+const must = [];
 
 if ('creatorName' in query) {
   must.push({
-              'text': {
-                'path': "creator.@list.name",
-                'query': query.creatorName
-              }
-            });
+    'text': {
+      'path': 'creator.@list.name',
+      'query': query.creatorName
+    }
+  });
 }
 
 if ('providerName' in query) {
   must.push({
-              'text': {
-                'path': "provider.name",
-                'query': query.providerName
-              }
-            });
+    'text': {
+      'path': 'provider.name',
+      'query': query.providerName
+    }
+  });
 }
 
-db.cznet.aggregate([
-      {
-        '$search': {
-          'index': 'fuzzy_search',
-          'compound': {
-            'filter': filters,
-            'should': should,
-            'must': must
-          },
-          'highlight': { 'path': ['name', 'description', 'keywords'] }
-        }
+if ('contentType' in query) {
+  must.push({
+    'text': {
+      'path': '@type',
+      'query': query.contentType
+    }
+  });
+}
+
+const stages = []
+
+stages.push(
+  {
+    '$search': {
+      'index': 'fuzzy_search',
+      'compound': {
+        'filter': filters,
+        'should': should,
+        'must': must
       },
-      {
-        '$limit': query.limit ? query.limit : 30
-      },
-      { 
-        '$set': {
-          'score': { '$meta': 'searchScore' },
-          'highlights': { '$meta': 'searchHighlights' }
-        } 
-      },
-      {
-        '$sort': { 'score': { '$meta': 'textScore' } }
-      }
-    ]);
+      'highlight': { 'path': ['name', 'description', 'keywords'] }
+    }
+  }
+)
+
+// Sort needs to happen before pagination
+if ('sortBy' in query) {
+  stages.push({
+  '$sort': { 
+      [query.sortBy]: 1
+    }
+  })
+}
+
+stages.push(
+  {
+    '$skip': (+pageNumber - 1) * +pageSize
+  },
+  {
+    '$limit': +pageSize
+  },
+  { 
+    '$set': {
+      'score': { '$meta': 'searchScore' },
+      'highlights': { '$meta': 'searchHighlights' }
+    } 
+  },
+)
+
+const result = await records.aggregate(stages).toArray();
+
+//return result;
+result;
